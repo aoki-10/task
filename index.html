@@ -1203,14 +1203,40 @@
             const getMonthKey = (date) => {
                 return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             };
+
+            // 前月のキーを取得するヘルパーを追加
+            const getPreviousMonthKey = (date) => {
+                const prevDate = new Date(date);
+                prevDate.setMonth(prevDate.getMonth() - 1);
+                return getMonthKey(prevDate);
+            };
+
             const currentKey = getMonthKey(currentDate);
 
             const ensureMonthData = () => {
                 if (!monthlyData[currentKey]) {
-                setMonthlyData(prev => ({
-                    ...prev,
-                    [currentKey]: { goals: [], reflections: [], tasks: [] }
-                }));
+                setMonthlyData(prev => {
+                    // 二重作成防止
+                    if (prev[currentKey]) return prev;
+
+                    const prevKey = getPreviousMonthKey(currentDate);
+                    let carriedOverTasks = [];
+
+                    // 前月のデータが存在する場合、未完了タスクを複製して引き継ぐ
+                    if (prev[prevKey] && prev[prevKey].tasks) {
+                        carriedOverTasks = prev[prevKey].tasks
+                            .filter(task => !task.completed) // 未完了のみ抽出
+                            .map((task, index) => ({
+                                ...task,
+                                id: Date.now() + index, // 新しい月のタスクとして新しいIDを付与
+                            }));
+                    }
+
+                    return {
+                        ...prev,
+                        [currentKey]: { goals: [], reflections: [], tasks: carriedOverTasks }
+                    };
+                });
                 }
             };
             useEffect(() => { ensureMonthData(); }, [currentKey]);
